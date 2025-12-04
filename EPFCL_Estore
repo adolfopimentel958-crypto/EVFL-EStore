@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LumiArt Studio — Edición & Logos</title>
+<style>
+  :root{
+    --bg:#071021; --card:#071629; --muted:#c9d1d9; --accent:#ffd56b; --accent2:#8bd3ff;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071021,#0b1220);color:var(--muted);-webkit-font-smoothing:antialiased;}
+  /* Welcome full screen */
+  .welcome{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:60;overflow:hidden;}
+  .welcome canvas.bg{position:absolute;inset:0;pointer-events:none;z-index:1;}
+  .welcome .content{position:relative;z-index:3;text-align:center;}
+  .welcome h1{font-size:28px;margin:0 0 12px;}
+  .welcome p{margin:0;color:rgba(255,255,255,0.8);}
+  .btn-skip{margin-top:18px;padding:10px 18px;border-radius:999px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--muted);cursor:pointer;backdrop-filter:blur(4px);}
+  /* particles layer (explosion) */
+  canvas#particles{position:fixed;inset:0;z-index:62;pointer-events:none;}
+  /* App layout */
+  .app{display:none;min-height:100vh;display:grid;grid-template-columns:260px 1fr;gap:18px;padding:18px;z-index:10;}
+  .sidebar{background:linear-gradient(180deg,#06121a,#08131a);border-radius:12px;padding:14px;color:var(--muted);box-shadow:0 6px 18px rgba(0,0,0,0.5);}
+  .brand{font-weight:800;font-size:18px;margin:6px 0 12px;color:#fff;letter-spacing:0.3px;}
+  .small{font-size:12px;color:#9fb0bf;}
+  .btn{display:block;padding:10px;border-radius:8px;margin-bottom:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);cursor:pointer;text-align:left;}
+  .btn.active{background:linear-gradient(90deg,#0b2030,#103040);border-color:#173544;color:#fff;}
+  .content{background:linear-gradient(180deg,#03131a,#041621);border-radius:12px;padding:16px;min-height:70vh;}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  /* Chat area */
+  .panel{background:#06121a;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;height:66vh;min-height:320px;}
+  .messages{flex:1;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.01));border-radius:8px;}
+  .msg{padding:8px 10px;border-radius:10px;max-width:78%;}
+  .msg.me{background:#0b3943;color:white;align-self:flex-end;}
+  .msg.other{background:#0e2330;color:var(--muted);align-self:flex-start;}
+  .inputRow{display:flex;gap:8px;align-items:center;margin-top:6px;}
+  input[type="text"], input[type="tel"]{padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);flex:1;}
+  label.upload{cursor:pointer;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.04);display:inline-block;}
+  input[type=file]{display:none;}
+  .strike{color:#8b8b8b;text-decoration:line-through;margin-left:8px;font-size:12px;}
+  /* modals */
+  .modal{position:fixed;inset:0;background:rgba(1,6,10,0.6);display:none;align-items:center;justify-content:center;z-index:120;}
+  .card{background:linear-gradient(180deg,#071629,#06121a);padding:16px;border-radius:12px;min-width:320px;color:var(--muted);box-shadow:0 10px 30px rgba(2,6,10,0.8);}
+  .row{display:flex;gap:8px;align-items:center;}
+  .price{font-weight:700;color:var(--accent);}
+  .small-muted{font-size:12px;color:#9fb0bf;}
+  /* responsive */
+  @media(max-width:900px){.app{grid-template-columns:1fr;padding:12px;} .sidebar{display:flex;gap:8px;overflow:auto;flex-wrap:nowrap;height:64px;align-items:center;padding:8px;} .brand{display:none}}
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div class="welcome" id="welcome">
+  <canvas class="bg" id="bgCircles"></canvas>
+  <div class="content">
+    <h1 id="welcomeTitle">Bienvenidos</h1>
+    <p id="welcomeSub">Toque para omitir</p>
+    <button class="btn-skip" id="skipBtn">TOQUE PARA OMITIR</button>
+  </div>
+</div>
+
+<canvas id="particles"></canvas>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand" id="brandName">LumiArt Studio</div>
+
+    <div id="authArea" style="margin-bottom:12px;">
+      <div class="small">Cuenta / Iniciar sesión</div>
+      <div style="margin-top:8px;">
+        <input id="phoneInput" placeholder="Número de teléfono (simulado)" type="tel" />
+        <button class="btn" id="loginBtn">Iniciar sesión</button>
+      </div>
+      <div style="margin-top:8px;" class="small">Usuario: <span id="userPhone">No activo</span></div>
+    </div>
+
+    <div class="small" style="margin-top:10px;">Herramientas</div>
+    <button class="btn active" data-chat="editor" id="btnEditor">Editor de fotos</button>
+    <button class="btn" data-chat="logo" id="btnLogo">Creador de logo</button>
+    <button class="btn" data-chat="premium" id="btnPremium">Edición video — PREMIUM <span style="float:right" class="price">$3 <span class="strike">$5</span></span></button>
+
+    <div style="margin-top:14px;" class="small">Cuenta</div>
+    <div style="background:linear-gradient(90deg,#061a2a,#0b2230);padding:8px;border-radius:8px;margin-top:8px;">
+      Estado: <strong id="statusPremium">Free</strong>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="content">
+    <div class="header">
+      <div><strong id="activeTitle">Editor de fotos</strong></div>
+      <div class="small">LumiArt Studio — Demo local</div>
+    </div>
+
+    <div id="mainArea">
+      <!-- Chat / Panel -->
+      <div class="panel" id="panel">
+        <div class="messages" id="messages"></div>
+
+        <div class="inputRow">
+          <input id="msgInput" placeholder="Escribe un mensaje..." type="text" />
+          <label class="upload btn" title="Enviar imagen">📷 Subir <input id="fileInput" type="file" accept="image/*" /></label>
+          <button class="btn" id="sendBtn">Enviar</button>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn" id="verifyCodeBtn">Verificar código Google Play (SIMULADO)</button>
+            <div class="small-muted">Chat privado ✔</div>
+          </div>
+          <div class="small-muted">Envía fotos, códigos o mensajes.</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal" id="modalName">
+  <div class="card">
+    <h3>Nombre sugerido</h3>
+    <p id="suggestedName" style="font-weight:700;font-size:18px;">LumiArt Studio</p>
+    <p class="small-muted">Este será el nombre visible en la web. Pulsa aplicar para usarlo.</p>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+      <button class="btn" id="generateName">Generar otro</button>
+      <button class="btn" id="applyName">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalBuy">
+  <div class="card">
+    <h3>Comprar Premium</h3>
+    <p>Precio: <strong class="price">$3</strong> <span class="strike">$5</span></p>
+    <p class="small-muted">Compra simulada para activar funciones premium. Para pagos reales integra Stripe/PayPal.</p>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+      <button class="btn" id="modalCancel">Cancelar</button>
+      <button class="btn" id="modalConfirm">Pagar $3 (simulado)</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVACY -->
+<section style="padding:18px;color:#9fb0bf;">
+  <h4>Política de Privacidad (resumen)</h4>
+  <div id="privacyText" class="small"></div>
+</section>
+
+<script>
+/* ============================
+   Background pale circles (welcome)
+   ============================ */
+const bg = document.getElementById('bgCircles');
+const bgCtx = bg.getContext('2d');
+function resizeBg(){ bg.width = innerWidth; bg.height = innerHeight; }
+addEventListener('resize', resizeBg); resizeBg();
+let circles = [];
+for(let i=0;i<20;i++){
+  circles.push({
+    x: Math.random()*bg.width,
+    y: Math.random()*bg.height,
+    r: 20 + Math.random()*80,
+    vx: (Math.random()-0.5)*0.3,
+    vy: (Math.random()-0.5)*0.3,
+    a: Math.random()*Math.PI*2,
+    col: `rgba(${180+Math.floor(Math.random()*40)},${180+Math.floor(Math.random()*40)},${200+Math.floor(Math.random()*40)},`
+  });
+}
+function drawBg(){
+  bgCtx.clearRect(0,0,bg.width,bg.height);
+  circles.forEach(c=>{
+    c.x += c.vx; c.y += c.vy; c.a += 0.002;
+    if(c.x>bg.width+c.r) c.x=-c.r; if(c.x<-c.r) c.x=bg.width+c.r;
+    if(c.y>bg.height+c.r) c.y=-c.r; if(c.y<-c.r) c.y=bg.height+c.r;
+    bgCtx.beginPath();
+    bgCtx.fillStyle = c.col + (0.06 + Math.abs(Math.sin(c.a))*0.12) +')';
+    bgCtx.arc(c.x,c.y,c.r,0,Math.PI*2);
+    bgCtx.fill();
+  });
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+/* ============================
+   Particles explosion function
+   ============================ */
+const particlesCanvas = document.getElementById('particles');
+const pCtx = particlesCanvas.getContext('2d');
+function resizeParticles(){ particlesCanvas.width = innerWidth; particlesCanvas.height = innerHeight; }
+addEventListener('resize', resizeParticles); resizeParticles();
+function particleExplosion(x,y){
+  const parts = [];
+  for(let i=0;i<120;i++){
+    parts.push({
+      x: x + (Math.random()-0.5)*80,
+      y: y + (Math.random()-0.5)*80,
+      vx: (Math.random()-0.5)*6,
+      vy: (Math.random()-0.5)*6,
+      life: 60 + Math.random()*40,
+      col: ['#ff7675','#ffd56b','#8bd3ff','#b6ffb8','#e3b7ff'][Math.floor(Math.random()*5)]
+    });
+  }
+  let t=0;
+  function loop(){
+    pCtx.clearRect(0,0,particlesCanvas.width,particlesCanvas.height);
+    parts.forEach(p=>{
+      p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life--;
+      pCtx.beginPath(); pCtx.fillStyle = p.col; pCtx.globalAlpha = Math.max(0, p.life/100);
+      pCtx.arc(p.x,p.y,4,0,Math.PI*2); pCtx.fill();
+    });
+    t++;
+    if(t<120) requestAnimationFrame(loop);
+    else pCtx.clearRect(0,0,particlesCanvas.width,particlesCanvas.height);
+  }
+  loop();
+}
+
+/* ============================
+   Welcome skip -> name gen -> open app
+   ============================ */
+const welcome = document.getElementById('welcome');
+const skipBtn = document.getElementById('skipBtn');
+const modalName = document.getElementById('modalName');
+const suggestedNameEl = document.getElementById('suggestedName');
+const suggestions = [
+  'LumiArt Studio','EVL estore','PixelPedidos','RapiEdits','LogoFlash','SnapStudioRD','GlowLogo Studio'
+];
+
+function randomName(){ return suggestions[Math.floor(Math.random()*suggestions.length)]; }
+skipBtn.addEventListener('click', ()=> {
+  const name = randomName();
+  document.getElementById('welcomeTitle').textContent = 'Bienvenido a ' + name;
+  // particle explosion center
+  particleExplosion(innerWidth/2, innerHeight/2);
+  // show small premium & creation words briefly
+  const small = document.createElement('div'); small.textContent = 'premium • creación de logo'; small.style.position='fixed'; small.style.left='50%'; small.style.top='52%'; small.style.transform='translate(-50%,-50%)'; small.style.zIndex=63; small.style.color='var(--accent)'; small.style.fontSize='12px';
+  document.body.appendChild(small);
+  setTimeout(()=> document.body.removeChild(small),1200);
+  // show modal to accept name
+  suggestedNameEl.textContent = name;
+  setTimeout(()=>{ modalName.style.display='flex'; },700);
+});
+
+document.getElementById('generateName').addEventListener('click', ()=> {
+  suggestedNameEl.textContent = randomName();
+});
+document.getElementById('applyName').addEventListener('click', ()=> {
+  const nm = suggestedNameEl.textContent || 'LumiArt Studio';
+  document.getElementById('brandName').textContent = nm;
+  modalName.style.display = 'none';
+  welcome.style.display = 'none';
+  document.getElementById('app').style.display = 'grid';
+});
+
+/* ============================
+   App state: login, chats, sidebar
+   ============================ */
+const loginBtn = document.getElementById('loginBtn');
+const phoneInput = document.getElementById('phoneInput');
+const userPhoneEl = document.getElementById('userPhone');
+const statusPremium = document.getElementById('statusPremium');
+const messagesEl = document.getElementById('messages');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const fileInput = document.getElementById('fileInput');
+const btnEditor = document.getElementById('btnEditor');
+const btnLogo = document.getElementById('btnLogo');
+const btnPremium = document.getElementById('btnPremium');
+const activeTitle = document.getElementById('activeTitle');
+
+let currentChat = 'editor';
+let state = {
+  user: localStorage.getItem('la_user') || null,
+  premium: localStorage.getItem('la_premium') === '1',
+  chats: JSON.parse(localStorage.getItem('la_chats')||'{}')
+};
+function saveState(){ localStorage.setItem('la_chats', JSON.stringify(state.chats)); localStorage.setItem('la_premium', state.premium ? '1':'0'); if(state.user) localStorage.setItem('la_user', state.user); }
+function setUser(phone){
+  state.user = phone;
+  userPhoneEl.textContent = phone || 'No activo';
+  saveState();
+}
+if(state.user) setUser(state.user);
+statusPremium.textContent = state.premium ? 'Premium' : 'Free';
+
+function setActive(chat){
+  currentChat = chat;
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  if(chat==='editor') btnEditor.classList.add('active');
+  if(chat==='logo') btnLogo.classList.add('active');
+  if(chat==='premium') btnPremium.classList.add('active');
+  activeTitle.textContent = chat==='editor' ? 'Editor de fotos' : chat==='logo' ? 'Creador de logo' : 'Edición de video — PREMIUM';
+  renderMessages();
+}
+setActive('editor');
+
+loginBtn.addEventListener('click',()=>{
+  const p = phoneInput.value.trim();
+  if(!p){ alert('Escribe un número'); return; }
+  setUser(p);
+  alert('Sesión iniciada (simulado) como: ' + p);
+});
+
+btnEditor.addEventListener('click',()=> setActive('editor'));
+btnLogo.addEventListener('click',()=> setActive('logo'));
+btnPremium.addEventListener('click',()=>{
+  setActive('premium');
+  document.getElementById('modalBuy').style.display='flex';
+});
+
+/* ============================
+   Chat: send text and images
+   ============================*/
+sendBtn.addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
+
+fileInput.addEventListener('change',(e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    pushMessage({from:'me',image:ev.target.result});
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+function pushMessage(m){
+  if(!state.chats[currentChat]) state.chats[currentChat]=[];
+  state.chats[currentChat].push({time:Date.now(),...m});
+  saveState();
+  renderMessages();
+  // if message looks like a code -> bot reply simulated
+  if(m.text && /[A-Z0-9\-]{6,}/i.test(m.text)){
+    setTimeout(()=>{ pushMessage({from:'other',text:'Bot: recibido. Comprobando formato... (SIMULADO)'}); },700);
+  }
+}
+function sendMessage(){
+  const text = msgInput.value.trim();
+  if(!text) return;
+  pushMessage({from:'me',text});
+  msgInput.value='';
+}
+
+function renderMessages(){
+  messagesEl.innerHTML='';
+  const arr = state.chats[currentChat] || [];
+  arr.forEach(m=>{
+    const d = document.createElement('div');
+    d.className = 'msg ' + (m.from==='me'?'me':'other');
+    if(m.image){
+      const img = document.createElement('img'); img.src = m.image; img.style.maxWidth='220px'; img.style.borderRadius='8px'; img.style.display='block';
+      d.appendChild(img);
+    }
+    if(m.text){
+      const p = document.createElement('div'); p.textContent = m.text; d.appendChild(p);
+    }
+    messagesEl.appendChild(d);
+  });
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+/* ============================
+   Verify code (SIMULATED)
+   ============================*/
+const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+verifyCodeBtn.addEventListener('click', ()=>{
+  const code = prompt('Pega el código de Google Play (PIN) para verificar (SIMULADO):');
+  if(!code) return;
+  const okFormat = /^[A-Z0-9\-]{8,30}$/i.test(code);
+  if(!okFormat){
+    alert('Formato inválido. Asegúrate de pegar el código completo (solo letras y números).');
+    return;
+  }
+  // simulated authenticity check - randomish but deterministic-ish
+  const hash = Array.from(code).reduce((s,ch)=> s + ch.charCodeAt(0),0);
+  const isLikely = (hash%7) > 2; // purely SIMULATED
+  if(isLikely){
+    pushMessage({from:'other', text: 'Bot: El código tiene formato válido. ATENCIÓN: esta verificación es LOCAL y SIMULADA — NO es una verificación real con Google. Para confirmar saldo real, canjea el PIN en Google Play.'});
+  } else {
+    pushMessage({from:'other', text: 'Bot: El código parece inválido o ya usado según la comprobación local (SIMULADA). Recuerda: la única forma segura es canjear el PIN en Google Play oficial.'});
+  }
+});
+
+/* ============================
+   Buy premium (simulated)
+   ============================*/
+const modalBuy = document.getElementById('modalBuy');
+const modalCancel = document.getElementById('modalCancel');
+const modalConfirm = document.getElementById('modalConfirm');
+
+modalCancel.addEventListener('click', ()=> modalBuy.style.display='none');
+modalConfirm.addEventListener('click', ()=>{
+  state.premium = true;
+  statusPremium.textContent = 'Premium';
+  modalBuy.style.display='none';
+  saveState();
+  alert('Compra simulada realizada. Ahora eres Premium (esto solo está simulado).');
+});
+
+/* ============================
+   Privacy text
+   ============================*/
+const privacy = `Última actualización: ${new Date().toLocaleDateString()}
+
+1. Responsable: LumiArt Studio (demo).  
+2. Datos que recogemos: número de teléfono (simulado para identificación local), mensajes y archivos que compartas en los chats (se almacenan en tu navegador/localStorage).  
+3. Uso de las imágenes: las imágenes que subas se guardan localmente en tu navegador y no se envían a servidores en esta demo. Si integras un servidor, se informará dónde se almacenan.  
+4. Verificación de códigos: esta web incluye una comprobación LOCAL y SIMULADA de formato de códigos de tarjetas de regalo. **No** puede verificar o canjear tarjetas con Google Play. La única forma segura de comprobar saldo es canjear el PIN en Google Play oficial o usar servicios autorizados.  
+5. Pagos: la compra de Premium en esta demo es SIMULADA. Para pagos reales integra Stripe/PayPal y maneja datos con HTTPS y cumplimiento legal.  
+6. Menores: si eres menor, pide autorización de tu padre/tutor para recibir pagos o manejar cuentas.  
+7. Derechos: en caso de almacenar datos en servidor (no en demo), tendrás derecho a solicitar borrado. En esta versión local, borraremos datos quitando el almacenamiento local del navegador.`;
+
+document.getElementById('privacyText').textContent = privacy;
+
+/* ============================
+   Small hint
+   ============================*/
+setTimeout(()=>{ const hint = document.createElement('div'); hint.style.position='fixed'; hint.style.bottom='12px'; hint.style.right='12px'; hint.style.background='#061a1f'; hint.style.color='#9fd'; hint.style.padding='8px 12px'; hint.style.borderRadius='10px'; hint.style.zIndex=140; hint.textContent='Aviso: verificación de tarjetas es SIMULADA.'; document.body.appendChild(hint); setTimeout(()=> document.body.removeChild(hint),7000); },1200);
+
+</script>
+</body>
+</html>
